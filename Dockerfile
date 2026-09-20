@@ -14,8 +14,10 @@ ARG CLAUDE_CODE_VERSION=latest
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && npm cache clean --force
 
-RUN addgroup -g 1000 claude \
-    && adduser -D -u 1000 -G claude -h /home/claude -s /bin/bash claude
+# node:22-alpine already ships a "node" user/group at uid/gid 1000, so let
+# apk pick the next free id here rather than colliding with it.
+RUN addgroup claude \
+    && adduser -D -G claude -h /home/claude -s /bin/bash claude
 
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chmod=755 docker/claude-loop.sh /usr/local/bin/claude-loop.sh
