@@ -181,6 +181,38 @@ want to survive a reboot or a crash unattended.
 
 ## Tuning for a Pi Zero 2
 
+### Prerequisite: enable the memory cgroup controller
+
+Raspberry Pi OS ships with the memory cgroup controller disabled by
+default, even on current 64-bit Lite builds. Without it, `crun` fails
+outright the moment anything sets a memory limit — every path in this
+repo does (`mem_limit`/`memswap_limit` in `compose.yaml`, `--memory`/
+`--memory-swap` in the systemd units and the quick-test command) — with:
+
+```
+Error response from daemon: crun: opening file `memory.max` for writing: No such file or directory: OCI runtime attempted to invoke a command that was not found
+```
+
+Fix once, before any of the deployment paths below will work:
+
+```sh
+# check first — if "memory" is missing from this list, you need the fix
+cat /sys/fs/cgroup/cgroup.controllers
+
+# Bookworm moved cmdline.txt to /boot/firmware/; older Raspberry Pi OS
+# uses /boot/ directly — check which exists
+sudo nano /boot/firmware/cmdline.txt   # or /boot/cmdline.txt
+
+# append to the END of the single existing line (space-separated, no
+# newline — the file must stay exactly one line):
+#   cgroup_memory=1 cgroup_enable=memory
+
+sudo reboot
+
+# after reboot, confirm "memory" now appears
+cat /sys/fs/cgroup/cgroup.controllers
+```
+
 The 224MB/128MB numbers in this repo (image default is looser: see the
 Dockerfile's `NODE_OPTIONS`) come from a real Pi Zero 2 W already running
 other services under podman (Hawser, among others):
