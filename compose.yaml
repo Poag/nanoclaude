@@ -1,0 +1,24 @@
+services:
+  nanoclaude:
+    image: ghcr.io/poag/nanoclaude:latest
+    pull_policy: always
+    container_name: nanoclaude
+    restart: unless-stopped
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Lower than the image default (256m) — sized against this host's real
+      # `free -m` headroom (~268MB available, other services already using
+      # ~194MB of 463MB total). See README's Tuning section.
+      - NODE_OPTIONS=--max-old-space-size=128
+    volumes:
+      - claude-config:/home/claude/.claude
+      - ${NANOCLAUDE_WORKSPACE:-/srv/nanoclaude/workspace}:/workspace
+    # Hard RAM cap plus a swap allowance above it: on a 463MB-total host
+    # already running other services, better to let a transient spike swap
+    # (slow, but survivable) than get OOM-killed outright. The image's own
+    # HEALTHCHECK (baked into the Dockerfile) is inherited automatically.
+    mem_limit: 224m
+    memswap_limit: 448m
+
+volumes:
+  claude-config:

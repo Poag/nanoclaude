@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart nanoclaude if podman reports it unhealthy
+# Deliberately doesn't Want/After the container itself — Dockhand owns
+# starting/stopping/redeploying the stack. This unit only checks health.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/nanoclaude-watchdog.sh nanoclaude
