@@ -66,13 +66,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract metadata (tags, labels) for Docker
-      # https://github.com/docker/metadata-action
+      # Extract metadata (tags, labels) for Docker. `latest` is only
+      # auto-applied by metadata-action for tag/semver pushes, never for a
+      # plain branch push — without the explicit type=raw rule below, every
+      # push to main only ever produces a `:main` tag and `:latest` is
+      # never actually pushed (https://github.com/docker/metadata-action#latest-tag).
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Set platform pair
         run: |
@@ -153,6 +160,10 @@ jobs:
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
 
       # Combine each platform's pushed-by-digest image into one multi-arch
       # manifest list, tagged with the tags metadata-action computed above.
@@ -163,9 +174,14 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}@sha256:%s ' *)
 
+      # Inspect every tag metadata-action actually produced this run, not
+      # just steps.meta.outputs.version (the highest-priority one) — that's
+      # what let a missing `:latest` tag go unnoticed before.
       - name: Inspect image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ steps.meta.outputs.version }}
+          echo "${TAGS}" | xargs -I {} docker buildx imagetools inspect {}
 
       # Sign the published Docker image. This will only write to the public
       # Rekor transparency log when the Docker repository is public to avoid
