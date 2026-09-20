@@ -11,9 +11,11 @@ for a **Raspberry Pi Zero 2 W** (quad-core Cortex-A53, 512MB RAM).
 - **Self-healing:** a `HEALTHCHECK` verifies the supervisor is alive; wired
   up with podman's `--health-on-failure=kill` + a `Restart=always` systemd
   unit, an unhealthy container is killed and restarted automatically.
-- **Multi-arch:** CI publishes `linux/amd64`, `linux/arm64`, and
-  `linux/arm/v7` images to `ghcr.io/poag/nanoclaude`, covering both 32-bit
-  and 64-bit Raspberry Pi OS.
+- **Multi-arch:** CI publishes `linux/amd64` and `linux/arm64` images to
+  `ghcr.io/poag/nanoclaude`. There's no `linux/arm/v7` (32-bit) build — see
+  [Why no 32-bit image](#why-no-32-bit-image) below — so this targets
+  64-bit Raspberry Pi OS, which is recommended on the Zero 2 W anyway (see
+  [Tuning](#tuning-for-a-pi-zero-2-512mb-ram) below).
 
 ## Layout
 
@@ -34,12 +36,31 @@ On the Pi itself (slow but simplest):
 podman build -t nanoclaude:local .
 ```
 
-Or cross-build multi-arch images elsewhere with buildx/QEMU (this is what
-`.github/workflows/docker-publish.yml` does on every push to `main`):
+Elsewhere, build on arm64 hardware directly (Apple Silicon, an arm64 CI
+runner, another Pi) — don't cross-build `linux/arm64` under QEMU from an
+amd64 host, see below for why:
 
 ```sh
-docker buildx build --platform linux/arm64,linux/arm/v7 -t nanoclaude:local .
+docker buildx build --platform linux/arm64 -t nanoclaude:local .
 ```
+
+`.github/workflows/docker-publish.yml` builds `linux/amd64` and
+`linux/arm64` on GitHub's respective native runners (`ubuntu-latest` and
+`ubuntu-24.04-arm`) and merges them into one multi-arch manifest, so no
+QEMU is involved on the amd64 image either.
+
+### Why no 32-bit image
+
+Claude Code ships a prebuilt native binary per platform (via
+`optionalDependencies`, e.g. `@anthropic-ai/claude-code-linux-arm64-musl`)
+and runs it from its `postinstall` script. Under QEMU's usermode CPU
+emulation that binary reliably crashes with `qemu: uncaught target signal
+4 (Illegal instruction)` — a known fragility of emulating modern
+Rust/Go-style static binaries with QEMU's TCG, not a bug in this
+Dockerfile. Building on real arm64 silicon (GitHub's `ubuntu-24.04-arm`
+runner, or an arm64 machine) sidesteps it entirely. There's no equivalent
+hosted 32-bit ARM runner, so `linux/arm/v7` isn't built; run 64-bit
+Raspberry Pi OS on the Zero 2 W instead.
 
 ## Running (quick test)
 
