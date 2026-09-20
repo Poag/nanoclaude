@@ -1,0 +1,26 @@
+[Unit]
+Description=nanoclaude - persistent Claude Code container (podman)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Podman's --health-on-failure=kill stops the container the moment the
+# HEALTHCHECK reports unhealthy; that makes ExecStart exit, and systemd's
+# Restart=always then brings it straight back up. Requires podman >= 4.3.
+ExecStartPre=-/usr/bin/podman rm -f nanoclaude
+ExecStart=/usr/bin/podman run --rm --name nanoclaude \
+    --health-on-failure=kill \
+    --memory=384m --memory-swap=512m \
+    -v nanoclaude-config:/home/claude/.claude \
+    -v /var/lib/nanoclaude/workspace:/workspace \
+    --env-file=/etc/nanoclaude/nanoclaude.env \
+    ghcr.io/poag/nanoclaude:latest
+ExecStop=/usr/bin/podman stop -t 10 nanoclaude
+
+[Install]
+WantedBy=multi-user.target
