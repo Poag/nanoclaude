@@ -19,6 +19,7 @@ ExecStartPre=-/usr/bin/podman rm -f nanoclaude
 ExecStart=/usr/bin/podman run --rm --name nanoclaude \
     --health-on-failure=kill \
     --memory=224m --memory-swap=448m \
+    --dns=1.1.1.1 --dns=8.8.8.8 \
     -e NODE_OPTIONS=--max-old-space-size=128 \
     -v nanoclaude-config:/home/claude/.claude \
     -v /var/lib/nanoclaude/workspace:/workspace \

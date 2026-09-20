@@ -70,12 +70,19 @@ Raspberry Pi OS on the Zero 2 W instead.
 podman run -d --name nanoclaude \
   --health-on-failure=kill --restart=always \
   --memory=224m --memory-swap=448m \
+  --dns=1.1.1.1 --dns=8.8.8.8 \
   -e NODE_OPTIONS=--max-old-space-size=128 \
   -v nanoclaude-config:/home/claude/.claude \
   -v ./workspace:/workspace:Z \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   ghcr.io/poag/nanoclaude:latest
 ```
+
+`--dns` (swap for your own resolver if you have one) works around podman
+containers otherwise inheriting the host's `/etc/resolv.conf` verbatim —
+if the host resolves via a loopback stub (e.g. systemd-resolved's
+`127.0.0.53`), that address is unreachable from inside the container's
+own network namespace and lookups fail.
 
 `--health-on-failure=kill` (podman >= 4.3) makes podman stop the container
 the moment `HEALTHCHECK` reports unhealthy; combined with `--restart=always`

@@ -13,6 +13,14 @@ services:
     volumes:
       - claude-config:/home/claude/.claude
       - ${NANOCLAUDE_WORKSPACE:-/srv/nanoclaude/workspace}:/workspace
+    # Explicit DNS: podman containers otherwise inherit the host's
+    # /etc/resolv.conf verbatim, and if the host resolves via a loopback
+    # stub (e.g. systemd-resolved's 127.0.0.53) that address is unreachable
+    # from inside the container's own network namespace, so lookups fail.
+    # Swap these for your own resolver (router, Pi-hole, etc.) if you have one.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     # Hard RAM cap plus a swap allowance above it: on a 463MB-total host
     # already running other services, better to let a transient spike swap
     # (slow, but survivable) than get OOM-killed outright. The image's own
